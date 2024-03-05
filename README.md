@@ -1,6 +1,6 @@
 # SEGA Genesis Decompression Functions
 
-A collection of data decompression functions for the SEGA Genesis/Mega Drive
+Custom written implementations of decompression functions for various algorithms for the SEGA Genesis/Mega Drive
 
 ## Supported Algorithms
 
