@@ -94,101 +94,122 @@ EniDec:
 ; ----------------------------------------------------------------------
 
 EniDec_GetCode:
-	rol.w	#6,d5					; Read 6 bits
-	subq.w	#6,d6
-	moveq	#%001,d7				; 1-bit code
-	
-	btst	#5,d5					; Is the code 2 bits?
-	beq.s	.GotMode				; If not, branch
+	subq.w	#1,d6					; Does the next code involve using an inline tile?
+	rol.w	#1,d5
+	bcs.s	.InlineTileCode				; If so, branch
 
-	rol.w	#1,d5					; Read an extra bit
-	subq.w	#1,d6
-	moveq	#%111,d7				; 2-bit code
+	subq.w	#1,d6					; Should we copy the static tile?
+	rol.w	#1,d5
+	bcs.s	.Mode01					; If so, branch
 
-.GotMode:
-	move.w	d5,d0					; Get copy length
+.Mode00:
+	subq.w	#4,d6					; Get copy length
+	rol.w	#4,d5
+	move.w	d5,d0
 	andi.w	#$F,d0
+	
+.Mode00Copy:
+	move.w	a4,(a1)+				; Copy incrementing tile
+	addq.w	#1,a4					; Increment
+	dbf	d0,.Mode00Copy				; Loop until enough is copied
+	bra.s	.NextCode				; Process next code
 
-	move.w	d5,d1					; Get code
-	lsr.w	#4,d1
-	and.w	d7,d1
+.Mode01:
+	subq.w	#4,d6					; Get copy length
+	rol.w	#4,d5
+	move.w	d5,d0
+	andi.w	#$F,d0
+	
+.Mode01Copy:
+	move.w	a5,(a1)+				; Copy static tile
+	dbf	d0,.Mode01Copy				; Loop until enough is copied
+	
+.NextCode:
+	ENI_ADVANCE					; Advance bitstream
+	bra.s	EniDec_GetCode				; Process next code
+
+.InlineTileCode:
+	subq.w	#2,d6					; Get code
+	rol.w	#2,d5
+	move.w	d5,d1
+	andi.w	#%11,d1
+	
+	subq.w	#4,d6					; Get copy length
+	rol.w	#4,d5
+	move.w	d5,d0
+	andi.w	#$F,d0
 	
 	ENI_ADVANCE					; Advance bitstream
 
 	add.w	d1,d1					; Handle code
-	jmp	.CodeHandlers(pc,d1.w)
+	jsr	.InlineCodes(pc,d1.w)
+	
+	bra.s	EniDec_GetCode				; Process next code
 
 ; ----------------------------------------------------------------------
 
-.CodeHandlers:
-	bra.s	EniDec_Mode00
-	bra.s	EniDec_Mode01
-	rts
-	rts
-	bra.s	EniDec_Mode100
-	bra.s	EniDec_Mode101
-	bra.s	EniDec_Mode110
+.InlineCodes:
+	bra.s	EniDec_InlineMode00
+	bra.s	EniDec_InlineMode01
+	bra.s	EniDec_InlineMode10
 	
 ; ----------------------------------------------------------------------
 
-EniDec_Mode111:
+EniDec_InlineMode11:
 	cmpi.w	#$F,d0					; Are we at the end?
-	beq.w	EniDec_Done				; If so, branch
+	beq.s	EniDec_Done				; If so, branch
 
 .Copy:
-	bsr.w	EniDec_GetInlineTile			; Get tile
+	bsr.s	EniDec_GetInlineTile			; Get tile
 	move.w	d1,(a1)+				; Store tile
 	dbf	d0,.Copy				; Loop until enough is copied
-	bra.s	EniDec_GetCode				; Process next code
-
-; ----------------------------------------------------------------------
-
-EniDec_Mode00:
-.Copy:
-	move.w	a4,(a1)+				; Copy incrementing tile
-	addq.w	#1,a4					; Increment
-	dbf	d0,.Copy				; Loop until enough is copied
-	bra.s	EniDec_GetCode				; Process next code
-
-; ----------------------------------------------------------------------
-
-EniDec_Mode01:
-.Copy:
-	move.w	a5,(a1)+				; Copy static tile
-	dbf	d0,.Copy				; Loop until enough is copied
-	bra.s	EniDec_GetCode				; Process next code
+	rts
 	
 ; ----------------------------------------------------------------------
 
-EniDec_Mode100:
-	bsr.w	EniDec_GetInlineTile			; Get tile
+EniDec_Done:
+	addq.w	#4,sp					; Discard return address
+	
+	subq.w	#1,a0					; Discard trailing byte
+	cmpi.w	#16,d6					; Are there 2 trailing bytes?
+	bne.s	.End					; If not, branch
+	subq.w	#1,a0					; If so, discard the other byte
+	
+.End:
+	movem.l	(sp)+,d0-d6/a2-a5			; Restore registers
+	rts
+
+; ----------------------------------------------------------------------
+
+EniDec_InlineMode00:
+	bsr.s	EniDec_GetInlineTile			; Get tile
 
 .Copy:
 	move.w	d1,(a1)+				; Copy tile
 	dbf	d0,.Copy				; Loop until enough is copied
-	bra.s	EniDec_GetCode				; Process next code
+	rts
 	
 ; ----------------------------------------------------------------------
 
-EniDec_Mode101:
-	bsr.w	EniDec_GetInlineTile			; Get tile
+EniDec_InlineMode01:
+	bsr.s	EniDec_GetInlineTile			; Get tile
 
 .Copy:
 	move.w	d1,(a1)+				; Copy tile
 	addq.w	#1,d1					; Increment
 	dbf	d0,.Copy				; Loop until enough is copied
-	bra.w	EniDec_GetCode				; Process next code
+	rts
 	
 ; ----------------------------------------------------------------------
 
-EniDec_Mode110:
-	bsr.w	EniDec_GetInlineTile			; Get tile
+EniDec_InlineMode10:
+	bsr.s	EniDec_GetInlineTile			; Get tile
 
 .Copy:
 	move.w	d1,(a1)+				; Copy tile
 	subq.w	#1,d1					; Decrement
 	dbf	d0,.Copy				; Loop until enough is copied
-	bra.w	EniDec_GetCode				; Process next code
+	rts
 
 ; ----------------------------------------------------------------------
 
@@ -201,7 +222,8 @@ EniDec_GetInlineTile:
 	ENI_TILE_FLAG 13,1
 	ENI_TILE_FLAG 12,0				; Y flip
 	ENI_TILE_FLAG 11,0				; X flip
-	ENI_ADVANCE
+	
+	ENI_ADVANCE					; Advance bitstream
 
 	moveq	#0,d2					; Reset upper bits
 	move.w	d4,d1					; Get number of bits in a tile ID
@@ -223,8 +245,8 @@ EniDec_GetInlineTile:
 	rol.w	d7,d5
 
 .GetTileID:
-	rol.w	d1,d5					; Get tile ID bits
-	sub.w	d1,d6
+	sub.w	d1,d6					; Get tile ID bits
+	rol.w	d1,d5
 	
 	move.w	d1,d7					; Apply mask and base tile properties
 	add.w	d7,d7
@@ -255,17 +277,5 @@ EniDec_GetInlineTile:
 	dc.w	%0011111111111111
 	dc.w	%0111111111111111
 	dc.w	%1111111111111111
-	
-; ----------------------------------------------------------------------
-
-EniDec_Done:
-	subq.w	#1,a0					; Discard trailing byte
-	cmpi.w	#16,d6					; Are there 2 trailing bytes?
-	bne.s	.End					; If not, branch
-	subq.w	#1,a0					; If so, discard the other byte
-	
-.End:
-	movem.l	(sp)+,d0-d6/a2-a5			; Restore registers
-	rts
 	
 ; ----------------------------------------------------------------------

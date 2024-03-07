@@ -31,9 +31,10 @@
 ; ----------------------------------------------------------------------
 
 KOS_READ_DESC macro
-	move.b	(a0)+,1(sp)				; Read from data stream
-	move.b	(a0)+,(sp)
-	move.w	(sp),d1
+	move.b	(a0)+,-(sp)				; Read from data stream
+	move.b	(a0)+,-(sp)
+	move.w	(sp)+,d1
+	move.b	(sp)+,d1
 	moveq	#16-1,d0				; 16 bits to process
 	endm
 	
@@ -53,8 +54,7 @@ KOS_NEXT_BIT macro
 ; ----------------------------------------------------------------------
 
 KosDec:
-	movem.l	d0-d4/a2,-(sp)				; Save registers
-	subq.w	#2,sp					; Allocate buffer for endian conversion
+	movem.l	d0-d3/a2,-(sp)				; Save registers
 	
 	KOS_READ_DESC					; Read first descriptor field
 
@@ -80,7 +80,7 @@ KosDec_Code0x:
 	moveq	#$FFFFFFFF,d2				; Copy offsets are always negative
 	moveq	#0,d3					; Reset copy counter
 
-	lsr.w	#1,d1					; Get subcode
+	lsr.w	#1,d1					; Get 2nd code bit
 	bcs.s	KosDec_Code01				; If the full code is 01, branch
 
 ; ----------------------------------------------------------------------
@@ -88,7 +88,7 @@ KosDec_Code0x:
 KosDec_Code00:
 	KOS_NEXT_BIT					; Advance descriptor field
 
-	lsr.w	#1,d1					; Get number of bytes to copy
+	lsr.w	#1,d1					; Get number of bytes to copy (2 bits)
 	addx.w	d3,d3
 	KOS_NEXT_BIT
 	lsr.w	#1,d1
@@ -114,13 +114,13 @@ KosDec_Copy:
 KosDec_Code01:
 	KOS_NEXT_BIT					; Advance descriptor field
 
-	move.b	(a0)+,d4				; Get copy offset
-	move.b	(a0)+,d3
-	move.b	d3,d2
+	move.b	(a0)+,-(sp)				; Get copy offset
+	move.b	(a0)+,d2
+	move.b	d2,d3
 	lsl.w	#5,d2
-	move.b	d4,d2
+	move.b	(sp)+,d2
 
-	andi.b	#7,d3					; Get 3-bit copy count
+	andi.w	#7,d3					; Get 3-bit copy count
 	bne.s	KosDec_Copy				; If this is a 3-bit copy count, branch
 
 	move.b	(a0)+,d3				; Get 8-bit copy count
@@ -131,8 +131,7 @@ KosDec_Code01:
 	bra.w	KosDec_GetCode				; Process next code
 
 .End:
-	addq.w	#2,sp					; Free endian conversion buffer
-	movem.l	(sp)+,d0-d4/a2				; Restore registers
+	movem.l	(sp)+,d0-d3/a2				; Restore registers
 	rts
 	
 ; ----------------------------------------------------------------------

@@ -114,8 +114,8 @@ NemDec_GetCode:
 	
 	moveq	#0,d0					; Advance bitstream past code
 	move.b	(a1,d1.w),d0
-	rol.w	d0,d5
 	sub.w	d0,d6
+	rol.w	d0,d5
 	
 	move.b	1(a1,d1.w),d1				; Get pixel value and repeat count
 	
@@ -150,12 +150,12 @@ NemDec_NewPixelRow:
 ; ----------------------------------------------------------------------
 
 NemDec_GetInlinePixel:
-	rol.w	#6,d5					; Advance bitstream past code
-	subq.w	#6,d6
+	subq.w	#6,d6					; Advance bitstream past code
+	rol.w	#6,d5
 	NEM_ADVANCE
 	
-	rol.w	#7,d5					; Get inline data
-	subq.w	#7,d6
+	subq.w	#7,d6					; Get inline data
+	rol.w	#7,d5
 	
 	move.w	d5,d1					; Start copying pixel from inline data
 	bra.s	NemDec_StartPixelCopy
@@ -165,7 +165,7 @@ NemDec_GetInlinePixel:
 NemDec_WriteRowToVDP:
 	move.l	d4,(a4)					; Write pixel row
 	subq.w	#1,a5					; Decrement number of pixel rows left
-	move.w	a5,d4
+	move.w	a5,d7
 	bne.s	NemDec_NewPixelRow			; If there's still pixel rows to write, branch
 	rts
 
@@ -173,7 +173,7 @@ NemDec_WriteXORRowToVDP:
 	eor.l	d4,d2					; XOR previous pixel row with current pixel row
 	move.l	d2,(a4)					; Write pixel row
 	subq.w	#1,a5					; Decrement number of pixel rows left
-	move.w	a5,d4
+	move.w	a5,d7
 	bne.s	NemDec_NewPixelRow			; If there's still pixel rows to write, branch
 	rts
 	
@@ -182,7 +182,7 @@ NemDec_WriteXORRowToVDP:
 NemDec_WriteRowToRAM:
 	move.l	d4,(a4)+				; Write pixel row
 	subq.w	#1,a5					; Decrement number of pixel rows left
-	move.w	a5,d4
+	move.w	a5,d7
 	bne.s	NemDec_NewPixelRow			; If there's still pixel rows to write, branch
 	rts
 
@@ -190,7 +190,7 @@ NemDec_WriteXORRowToRAM:
 	eor.l	d4,d2					; XOR previous pixel row with current pixel row
 	move.l	d2,(a4)+				; Write pixel row
 	subq.w	#1,a5					; Decrement number of pixel rows left
-	move.w	a5,d4
+	move.w	a5,d7
 	bne.s	NemDec_NewPixelRow			; If there's still pixel rows to write, branch
 	rts
 	
@@ -215,30 +215,19 @@ NemDec_BuildCodeTable:
 	add.w	d0,d0
 	or.w	.ShiftedCodes(pc,d0.w),d2
 	
-	subq.w	#8,d1					; Is the code 8 bits long?
+	subq.w	#8,d1					; Get shift value based on code length
 	neg.w	d1
-	bne.s	.ShortCode				; If not, branch
 	
-	move.b	(a0)+,d0				; Store code table entry
-	add.w	d0,d0
-	move.w	d2,(a1,d0.w)
-	
-	bra.s	NemDec_BuildCodeTable			; Get next byte
-	
-.ShortCode:
 	move.b	(a0)+,d0				; Get code table index
 	lsl.w	d1,d0
 	add.w	d0,d0
 	
-	moveq	#1,d3					; Get code table entry count
-	lsl.w	d1,d3
-	subq.w	#1,d3
-	
 	lea	(a1,d0.w),a2				; Get first code table entry
+	move.b	.EntryCounts(pc,d1.w),d1		; Get entry count
 	
-.StoreShortCode:
+.StoreCode:
 	move.w	d2,(a2)+				; Store code table entry
-	dbf	d3,.StoreShortCode			; Loop until finished
+	dbf	d1,.StoreCode				; Loop until finished
 	
 	bra.s	NemDec_BuildCodeTable			; Get next byte
 		
@@ -246,6 +235,12 @@ NemDec_BuildCodeTable:
 	rts
 
 ; ----------------------------------------------------------------------
+
+.EntryCounts:
+	dc.b	(1<<0)-1, (1<<1)-1, (1<<2)-1, (1<<3)-1
+	dc.b	(1<<4)-1, (1<<5)-1, (1<<6)-1, (1<<7)-1
+	dc.b	(1<<8)-1
+	even
 
 .ShiftedCodes:
 	dc.w	$000, $100, $200, $300, $400, $500, $600, $700
