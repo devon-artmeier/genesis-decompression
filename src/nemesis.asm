@@ -38,7 +38,7 @@ NEM_VDP_DATA		equ $C00000			; VDP data port
 
 NEM_ADVANCE macro
 	cmpi.w	#8,d6					; Should we get another byte?
-	bhi.s	.NoRead					; If not, branch
+	bhi.s	.NoRead\@				; If not, branch
 
 	move.w	d6,d7					; Get number of bits read past byte
 	subq.w	#8,d7
@@ -49,7 +49,7 @@ NEM_ADVANCE macro
 	rol.w	d7,d5
 	addq.w	#8,d6
 
-.NoRead:
+.NoRead\@:
 	endm
 	
 ; ----------------------------------------------------------------------

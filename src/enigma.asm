@@ -33,7 +33,7 @@
 
 ENI_ADVANCE macro
 	cmpi.w	#8,d6					; Should we get another byte?
-	bhi.s	.NoRead					; If not, branch
+	bhi.s	.NoRead\@				; If not, branch
 
 	move.w	d6,d7					; Get number of bits read past byte
 	subq.w	#8,d7
@@ -44,7 +44,7 @@ ENI_ADVANCE macro
 	rol.w	d7,d5
 	addq.w	#8,d6
 
-.NoRead:
+.NoRead\@:
 	endm
 
 ; ----------------------------------------------------------------------
@@ -57,17 +57,17 @@ ENI_ADVANCE macro
 
 ENI_TILE_FLAG macro bit, off
 	add.b	d7,d7					; Is the priority flag set?
-	bcc.s	.NotSet					; If not, branch
+	bcc.s	.NotSet\@				; If not, branch
 	subq.w	#1,d6					; Does this tile have its priority flag set?
 	rol.w	#1,d5
-	bcc.s	.NotSet					; If not, branch
+	bcc.s	.NotSet\@				; If not, branch
 	if off<>0
 		addi.w	#1<<bit,d3			; Offset flag in base tile properties
 	else
 		ori.w	#1<<bit,d3			; Set flag in base tile properties
 	endif
 
-.NotSet:
+.NotSet\@:
 	endm
 
 ; ----------------------------------------------------------------------

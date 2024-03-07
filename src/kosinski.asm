@@ -43,10 +43,10 @@ KOS_READ_DESC macro
 ; ----------------------------------------------------------------------
 
 KOS_NEXT_BIT macro
-	dbf	d0,.NoNewDesc				; Decrement bits left to process
+	dbf	d0,.NoNewDesc\@				; Decrement bits left to process
 	KOS_READ_DESC					; If we need to read another descriptor field, read it
 
-.NoNewDesc:
+.NoNewDesc\@:
 	endm
 
 ; ----------------------------------------------------------------------
