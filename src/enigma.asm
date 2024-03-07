@@ -75,7 +75,7 @@ ENI_TILE_FLAG macro bit, off
 ; ----------------------------------------------------------------------
 
 EniDec:
-	movem.l	d0-d6/a2-a5,-(sp)			; Save registers
+	movem.l	d0-d7/a2-a5,-(sp)			; Save registers
 	movea.w	d0,a2					; Save base tile properties
 
 	moveq	#0,d4					; Get number of tile bits
@@ -176,7 +176,7 @@ EniDec_Done:
 	subq.w	#1,a0					; If so, discard the other byte
 	
 .End:
-	movem.l	(sp)+,d0-d6/a2-a5			; Restore registers
+	movem.l	(sp)+,d0-d7/a2-a5			; Restore registers
 	rts
 
 ; ----------------------------------------------------------------------
