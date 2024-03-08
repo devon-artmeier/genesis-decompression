@@ -63,6 +63,12 @@ NemDec:
 	lea	NEM_VDP_DATA,a4				; VDP data port
 	bsr.s	NemDecMain				; Decompress data
 	
+	subq.w	#1,a0					; Discard trailing byte
+	cmpi.w	#16,d6					; Are there 2 trailing bytes?
+	bne.s	.End					; If not, branch
+	subq.w	#1,a0					; If so, discard the other byte
+	
+.End:
 	movem.l	(sp)+,d0-d7/a1-a5			; Restore registers
 	rts
 	
@@ -74,6 +80,12 @@ NemDecToRAM:
 	lea	NemDec_WriteRowToRAM(pc),a3		; Write to RAM
 	bsr.s	NemDecMain				; Decompress data
 	
+	subq.w	#1,a0					; Discard trailing byte
+	cmpi.w	#16,d6					; Are there 2 trailing bytes?
+	bne.s	.End					; If not, branch
+	subq.w	#1,a0					; If so, discard the other byte
+	
+.End:
 	movem.l	(sp)+,d0-d7/a1-a3/a5			; Restore registers
 	rts
 	
