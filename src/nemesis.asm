@@ -56,38 +56,19 @@ NEM_ADVANCE macro
 ; Nemesis decompression function
 ; ----------------------------------------------------------------------
 
+NemDecToRAM:
+	movem.l	d0-a5,-(sp)				; Save registers
+	
+	lea	NemDec_WriteRowToRAM(pc),a3		; Write to RAM
+	bra.s	NemDecMain				; Decompress data
+
+; ----------------------------------------------------------------------
+
 NemDec:
-	movem.l	d0-d7/a1-a5,-(sp)			; Save registers
+	movem.l	d0-a5,-(sp)				; Save registers
 	
 	lea	NemDec_WriteRowToVDP(pc),a3		; Write to VRAM
 	lea	NEM_VDP_DATA,a4				; VDP data port
-	bsr.s	NemDecMain				; Decompress data
-	
-	subq.w	#1,a0					; Discard trailing byte
-	cmpi.w	#16,d6					; Are there 2 trailing bytes?
-	bne.s	.End					; If not, branch
-	subq.w	#1,a0					; If so, discard the other byte
-	
-.End:
-	movem.l	(sp)+,d0-d7/a1-a5			; Restore registers
-	rts
-	
-; ----------------------------------------------------------------------
-
-NemDecToRAM:
-	movem.l	d0-d7/a1-a3/a5,-(sp)			; Save registers
-	
-	lea	NemDec_WriteRowToRAM(pc),a3		; Write to RAM
-	bsr.s	NemDecMain				; Decompress data
-	
-	subq.w	#1,a0					; Discard trailing byte
-	cmpi.w	#16,d6					; Are there 2 trailing bytes?
-	bne.s	.End					; If not, branch
-	subq.w	#1,a0					; If so, discard the other byte
-	
-.End:
-	movem.l	(sp)+,d0-d7/a1-a3/a5			; Restore registers
-	rts
 	
 ; ----------------------------------------------------------------------
 
@@ -179,7 +160,7 @@ NemDec_WriteRowToVDP:
 	subq.w	#1,a5					; Decrement number of pixel rows left
 	move.w	a5,d7
 	bne.s	NemDec_NewPixelRow			; If there's still pixel rows to write, branch
-	rts
+	bra.s	NemDec_End
 
 NemDec_WriteXORRowToVDP:
 	eor.l	d4,d2					; XOR previous pixel row with current pixel row
@@ -187,7 +168,7 @@ NemDec_WriteXORRowToVDP:
 	subq.w	#1,a5					; Decrement number of pixel rows left
 	move.w	a5,d7
 	bne.s	NemDec_NewPixelRow			; If there's still pixel rows to write, branch
-	rts
+	bra.s	NemDec_End
 	
 ; ----------------------------------------------------------------------
 
@@ -196,7 +177,7 @@ NemDec_WriteRowToRAM:
 	subq.w	#1,a5					; Decrement number of pixel rows left
 	move.w	a5,d7
 	bne.s	NemDec_NewPixelRow			; If there's still pixel rows to write, branch
-	rts
+	bra.s	NemDec_End
 
 NemDec_WriteXORRowToRAM:
 	eor.l	d4,d2					; XOR previous pixel row with current pixel row
@@ -204,6 +185,11 @@ NemDec_WriteXORRowToRAM:
 	subq.w	#1,a5					; Decrement number of pixel rows left
 	move.w	a5,d7
 	bne.s	NemDec_NewPixelRow			; If there's still pixel rows to write, branch
+	
+; ----------------------------------------------------------------------
+
+NemDec_End:
+	movem.l	(sp)+,d0-a5				; Restore registers
 	rts
 	
 ; ----------------------------------------------------------------------
