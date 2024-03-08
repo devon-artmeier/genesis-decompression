@@ -55,7 +55,6 @@ KOS_NEXT_BIT macro
 
 KosDec:
 	movem.l	d0-d3/a2,-(sp)				; Save registers
-	
 	KOS_READ_DESC					; Read first descriptor field
 
 ; ----------------------------------------------------------------------
