@@ -56,9 +56,9 @@ ENI_ADVANCE macro
 ; ----------------------------------------------------------------------
 
 ENI_TILE_FLAG macro bit, off
-	add.b	d7,d7					; Is the priority flag set?
+	add.b	d7,d7					; Is this flag set?
 	bcc.s	.NotSet\@				; If not, branch
-	subq.w	#1,d6					; Does this tile have its priority flag set?
+	subq.w	#1,d6					; Does this tile have this flag set?
 	rol.w	#1,d5
 	bcc.s	.NotSet\@				; If not, branch
 	if off<>0
