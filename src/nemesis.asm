@@ -31,26 +31,6 @@
 
 NEM_CODE_TABLE		equ $FFFFAA00			; Code table buffer ($200 bytes)
 NEM_VDP_DATA		equ $C00000			; VDP data port
-
-; ----------------------------------------------------------------------
-; Advance bitstream
-; ----------------------------------------------------------------------
-
-NEM_ADVANCE macro
-	cmpi.w	#8,d6					; Should we get another byte?
-	bhi.s	.NoRead\@				; If not, branch
-
-	move.w	d6,d7					; Get number of bits read past byte
-	subq.w	#8,d7
-	neg.w	d7
-	
-	ror.w	d7,d5					; Read another byte
-	move.b	(a0)+,d5
-	rol.w	d7,d5
-	addq.w	#8,d6
-
-.NoRead\@:
-	endm
 	
 ; ----------------------------------------------------------------------
 ; Nemesis decompression function
@@ -116,8 +96,19 @@ NemDec_GetCode:
 	move.b	1(a1,d1.w),d1				; Get pixel value and repeat count
 	
 NemDec_StartPixelCopy:
-	NEM_ADVANCE					; Advance bitstream
+	cmpi.w	#8,d6					; Should we get another byte?
+	bhi.s	.GetPixel				; If not, branch
+
+	move.w	d6,d7					; Get number of bits read past byte
+	subq.w	#8,d7
+	neg.w	d7
 	
+	ror.w	d7,d5					; Read another byte
+	move.b	(a0)+,d5
+	rol.w	d7,d5
+	addq.w	#8,d6
+
+.GetPixel:
 	move.w	d1,d0					; Get pixel value
 	andi.w	#$F,d1
 	andi.w	#$70,d0					; Get repeat count
@@ -148,8 +139,20 @@ NemDec_NewPixelRow:
 NemDec_GetInlinePixel:
 	subq.w	#6,d6					; Advance bitstream past code
 	rol.w	#6,d5
-	NEM_ADVANCE
+
+	cmpi.w	#8,d6					; Should we get another byte?
+	bhi.s	.GetInlineData				; If not, branch
+
+	move.w	d6,d7					; Get number of bits read past byte
+	subq.w	#8,d7
+	neg.w	d7
 	
+	ror.w	d7,d5					; Read another byte
+	move.b	(a0)+,d5
+	rol.w	d7,d5
+	addq.w	#8,d6
+
+.GetInlineData:
 	subq.w	#7,d6					; Get inline data
 	rol.w	#7,d5
 	

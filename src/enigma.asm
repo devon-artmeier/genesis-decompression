@@ -28,49 +28,6 @@
 ; ----------------------------------------------------------------------
 
 ; ----------------------------------------------------------------------
-; Advance bitstream
-; ----------------------------------------------------------------------
-
-ENI_ADVANCE macro
-	cmpi.w	#8,d6					; Should we get another byte?
-	bhi.s	.NoRead\@				; If not, branch
-
-	move.w	d6,d7					; Get number of bits read past byte
-	subq.w	#8,d7
-	neg.w	d7
-	
-	ror.w	d7,d5					; Read another byte
-	move.b	(a0)+,d5
-	rol.w	d7,d5
-	addq.w	#8,d6
-
-.NoRead\@:
-	endm
-
-; ----------------------------------------------------------------------
-; Get tile flag
-; ----------------------------------------------------------------------
-; PARAMETERS:
-;	bit - Bit ID
-;	off - Offset instead of replace
-; ----------------------------------------------------------------------
-
-ENI_TILE_FLAG macro bit, off
-	add.b	d7,d7					; Is this flag set?
-	bcc.s	.NotSet\@				; If not, branch
-	subq.w	#1,d6					; Does this tile have this flag set?
-	rol.w	#1,d5
-	bcc.s	.NotSet\@				; If not, branch
-	if off<>0
-		addi.w	#1<<bit,d3			; Offset flag in base tile properties
-	else
-		ori.w	#1<<bit,d3			; Set flag in base tile properties
-	endif
-
-.NotSet\@:
-	endm
-
-; ----------------------------------------------------------------------
 ; Enigma decompression function
 ; ----------------------------------------------------------------------
 
@@ -125,7 +82,19 @@ EniDec_GetCode:
 	dbf	d0,.Mode01Copy				; Loop until enough is copied
 	
 .NextCode:
-	ENI_ADVANCE					; Advance bitstream
+	cmpi.w	#8,d6					; Should we get another byte?
+	bhi.s	.GoToNextCode				; If not, branch
+
+	move.w	d6,d7					; Get number of bits read past byte
+	subq.w	#8,d7
+	neg.w	d7
+	
+	ror.w	d7,d5					; Read another byte
+	move.b	(a0)+,d5
+	rol.w	d7,d5
+	addq.w	#8,d6
+
+.GoToNextCode:
 	bra.s	EniDec_GetCode				; Process next code
 
 .InlineTileCode:
@@ -139,8 +108,19 @@ EniDec_GetCode:
 	move.w	d5,d0
 	andi.w	#$F,d0
 	
-	ENI_ADVANCE					; Advance bitstream
+	cmpi.w	#8,d6					; Should we get another byte?
+	bhi.s	.HandleCode				; If not, branch
 
+	move.w	d6,d7					; Get number of bits read past byte
+	subq.w	#8,d7
+	neg.w	d7
+	
+	ror.w	d7,d5					; Read another byte
+	move.b	(a0)+,d5
+	rol.w	d7,d5
+	addq.w	#8,d6
+
+.HandleCode:
 	add.w	d1,d1					; Handle code
 	jsr	.InlineCodes(pc,d1.w)
 	
@@ -217,18 +197,63 @@ EniDec_GetInlineTile:
 	move.w	a3,d7					; Get tile flags
 	move.w	a2,d3					; Get base tile properties
 
-	ENI_TILE_FLAG 15,0				; Priority
-	ENI_TILE_FLAG 14,1				; Palette
-	ENI_TILE_FLAG 13,1
-	ENI_TILE_FLAG 12,0				; Y flip
-	ENI_TILE_FLAG 11,0				; X flip
-	
-	ENI_ADVANCE					; Advance bitstream
+	add.b	d7,d7					; Is the priority flag set?
+	bcc.s	.CheckPalette0				; If not, branch
+	subq.w	#1,d6					; Does this tile have its priority flag set?
+	rol.w	#1,d5
+	bcc.s	.CheckPalette0				; If not, branch
+	ori.w	#1<<15,d3				; Set priority flag in base tile properties
 
+.CheckPalette0:
+	add.b	d7,d7					; Is the high palette bit set?
+	bcc.s	.CheckPalette1				; If not, branch
+	subq.w	#1,d6					; Does this tile have its high palette bit set?
+	rol.w	#1,d5
+	bcc.s	.CheckPalette1				; If not, branch
+	addi.w	#1<<14,d3				; Offset palette in base tile properties
+
+.CheckPalette1:
+	add.b	d7,d7					; Is the low palette bit set?
+	bcc.s	.CheckYFlip				; If not, branch
+	subq.w	#1,d6					; Does this tile have its low palette bit set?
+	rol.w	#1,d5
+	bcc.s	.CheckYFlip				; If not, branch
+	addi.w	#1<<13,d3				; Offset palette in base tile properties
+
+.CheckYFlip:
+	add.b	d7,d7					; Is the Y flip flag set?
+	bcc.s	.CheckXFlip				; If not, branch
+	subq.w	#1,d6					; Does this tile have its Y flip bit set?
+	rol.w	#1,d5
+	bcc.s	.CheckXFlip				; If not, branch
+	ori.w	#1<<12,d3				; Set Y flip flag in base tile properties
+
+.CheckXFlip:
+	add.b	d7,d7					; Is the X flip flag set?
+	bcc.s	.GotFlags				; If not, branch
+	subq.w	#1,d6					; Does this tile have its X flip bit set?
+	rol.w	#1,d5
+	bcc.s	.GotFlags				; If not, branch
+	ori.w	#1<<11,d3				; Set X flip flag in base tile properties
+
+.GotFlags:
+	cmpi.w	#8,d6					; Should we get another byte?
+	bhi.s	.GetTileID				; If not, branch
+
+	move.w	d6,d7					; Get number of bits read past byte
+	subq.w	#8,d7
+	neg.w	d7
+	
+	ror.w	d7,d5					; Read another byte
+	move.b	(a0)+,d5
+	rol.w	d7,d5
+	addq.w	#8,d6
+
+.GetTileID:
 	moveq	#0,d2					; Reset upper bits
 	move.w	d4,d1					; Get number of bits in a tile ID
 	cmpi.w	#8,d1					; Is it more than 8 bits?
-	bls.s	.GetTileID				; If not, branch
+	bls.s	.GotTileID				; If not, branch
 	
 	rol.w	#8,d5					; Get first 8 bits of tile ID
 	move.b	d5,d2
@@ -244,7 +269,7 @@ EniDec_GetInlineTile:
 	move.b	(a0)+,d5
 	rol.w	d7,d5
 
-.GetTileID:
+.GotTileID:
 	sub.w	d1,d6					; Get tile ID bits
 	rol.w	d1,d5
 	
@@ -255,7 +280,19 @@ EniDec_GetInlineTile:
 	or.w	d2,d1
 	add.w	d3,d1
 	
-	ENI_ADVANCE					; Advance bitstream
+	cmpi.w	#8,d6					; Should we get another byte?
+	bhi.s	.End					; If not, branch
+
+	move.w	d6,d7					; Get number of bits read past byte
+	subq.w	#8,d7
+	neg.w	d7
+	
+	ror.w	d7,d5					; Read another byte
+	move.b	(a0)+,d5
+	rol.w	d7,d5
+	addq.w	#8,d6
+
+.End:
 	rts
 
 ; ----------------------------------------------------------------------

@@ -27,35 +27,17 @@
 ; ----------------------------------------------------------------------
 
 ; ----------------------------------------------------------------------
-; Read descriptor field
-; ----------------------------------------------------------------------
-
-KOS_READ_DESC macro
-	move.b	(a0)+,-(sp)				; Read from data stream
-	move.b	(a0)+,-(sp)
-	move.w	(sp)+,d1
-	move.b	(sp)+,d1
-	moveq	#16-1,d0				; 16 bits to process
-	endm
-	
-; ----------------------------------------------------------------------
-; Go to next bit in descriptor field
-; ----------------------------------------------------------------------
-
-KOS_NEXT_BIT macro
-	dbf	d0,.NoNewDesc\@				; Decrement bits left to process
-	KOS_READ_DESC					; If we need to read another descriptor field, read it
-
-.NoNewDesc\@:
-	endm
-
-; ----------------------------------------------------------------------
 ; Kosinski decompression function
 ; ----------------------------------------------------------------------
 
 KosDec:
 	movem.l	d0-d3/a2,-(sp)				; Save registers
-	KOS_READ_DESC					; Read first descriptor field
+	
+	move.b	(a0)+,-(sp)				; Read from data stream
+	move.b	(a0)+,-(sp)
+	move.w	(sp)+,d1
+	move.b	(sp)+,d1
+	moveq	#16-1,d0				; 16 bits to process
 
 ; ----------------------------------------------------------------------
 
@@ -66,16 +48,30 @@ KosDec_GetCode:
 ; ----------------------------------------------------------------------
 
 KosDec_Code1:
-	KOS_NEXT_BIT					; Advance descriptor field
+	dbf	d0,.NoNewDesc				; Decrement bits left to process
 
+	move.b	(a0)+,-(sp)				; Read from data stream
+	move.b	(a0)+,-(sp)
+	move.w	(sp)+,d1
+	move.b	(sp)+,d1
+	moveq	#16-1,d0				; 16 bits to process
+
+.NoNewDesc:
 	move.b	(a0)+,(a1)+				; Copy uncompressed byte
 	bra.s	KosDec_GetCode				; Process next code
 
 ; ----------------------------------------------------------------------
 
 KosDec_Code0x:
-	KOS_NEXT_BIT					; Advance descriptor field
+	dbf	d0,.NoNewDesc				; Decrement bits left to process
 
+	move.b	(a0)+,-(sp)				; Read from data stream
+	move.b	(a0)+,-(sp)
+	move.w	(sp)+,d1
+	move.b	(sp)+,d1
+	moveq	#16-1,d0				; 16 bits to process
+
+.NoNewDesc:
 	moveq	#$FFFFFFFF,d2				; Copy offsets are always negative
 	moveq	#0,d3					; Reset copy counter
 
@@ -85,15 +81,37 @@ KosDec_Code0x:
 ; ----------------------------------------------------------------------
 
 KosDec_Code00:
-	KOS_NEXT_BIT					; Advance descriptor field
+	dbf	d0,.GetCopyLength1			; Decrement bits left to process
 
-	lsr.w	#1,d1					; Get number of bytes to copy (2 bits)
-	addx.w	d3,d3
-	KOS_NEXT_BIT
-	lsr.w	#1,d1
-	addx.w	d3,d3
-	KOS_NEXT_BIT
+	move.b	(a0)+,-(sp)				; Read from data stream
+	move.b	(a0)+,-(sp)
+	move.w	(sp)+,d1
+	move.b	(sp)+,d1
+	moveq	#16-1,d0				; 16 bits to process
 
+.GetCopyLength1:
+	lsr.w	#1,d1					; Get number of bytes to copy (first bit)
+	addx.w	d3,d3
+	dbf	d0,.GetCopyLength2			; Decrement bits left to process
+
+	move.b	(a0)+,-(sp)				; Read from data stream
+	move.b	(a0)+,-(sp)
+	move.w	(sp)+,d1
+	move.b	(sp)+,d1
+	moveq	#16-1,d0				; 16 bits to process
+
+.GetCopyLength2:
+	lsr.w	#1,d1					; Get number of bytes to copy (second bit)
+	addx.w	d3,d3
+	dbf	d0,.GetCopyOffset			; Decrement bits left to process
+
+	move.b	(a0)+,-(sp)				; Read from data stream
+	move.b	(a0)+,-(sp)
+	move.w	(sp)+,d1
+	move.b	(sp)+,d1
+	moveq	#16-1,d0				; 16 bits to process
+
+.GetCopyOffset:
 	move.b	(a0)+,d2				; Get copy offset
 
 ; ----------------------------------------------------------------------
@@ -111,8 +129,15 @@ KosDec_Copy:
 ; ----------------------------------------------------------------------
 
 KosDec_Code01:
-	KOS_NEXT_BIT					; Advance descriptor field
+	dbf	d0,.NoNewDesc				; Decrement bits left to process
 
+	move.b	(a0)+,-(sp)				; Read from data stream
+	move.b	(a0)+,-(sp)
+	move.w	(sp)+,d1
+	move.b	(sp)+,d1
+	moveq	#16-1,d0				; 16 bits to process
+
+.NoNewDesc:
 	move.b	(a0)+,-(sp)				; Get copy offset
 	move.b	(a0)+,d2
 	move.b	d2,d3
