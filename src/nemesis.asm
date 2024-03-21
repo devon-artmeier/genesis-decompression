@@ -38,7 +38,7 @@ NEM_VDP_DATA		equ $C00000			; VDP data port
 
 NemDecToRAM:
 	movem.l	d0-a5,-(sp)				; Save registers
-	lea	NemDec_WriteRowToRAM(pc),a3		; Write to RAM
+	lea	NemDec_WriteRowToRam(pc),a3		; Write to RAM
 	bsr.s	NemDecMain				; Decompress data
 	movem.l	(sp)+,d0-a5				; Restore registers
 	rts
@@ -47,7 +47,7 @@ NemDecToRAM:
 
 NemDec:
 	movem.l	d0-a5,-(sp)				; Save registers
-	lea	NemDec_WriteRowToVDP(pc),a3		; Write to VRAM
+	lea	NemDec_WriteRowToVram(pc),a3		; Write to VRAM
 	lea	NEM_VDP_DATA,a4				; VDP data port
 	bsr.s	NemDecMain				; Decompress data
 	movem.l	(sp)+,d0-a5				; Restore registers
@@ -59,10 +59,10 @@ NemDecMain:
 	lea	NEM_CODE_TABLE,a1			; Code table buffer
 	
 	move.w	(a0)+,d0				; Get number of tiles
-	bpl.s	.NotXOR					; If XOR mode is not set, branch
+	bpl.s	.NotXor					; If XOR mode is not set, branch
 	lea	$A(a3),a3				; Use XOR version of data writer
 	
-.NotXOR:
+.NotXor:
 	lsl.w	#3,d0					; Get number of 8 pixel rows
 	movea.w	d0,a5
 	
@@ -161,14 +161,14 @@ NemDec_GetInlinePixel:
 	
 ; ----------------------------------------------------------------------
 
-NemDec_WriteRowToVDP:
+NemDec_WriteRowToVram:
 	move.l	d4,(a4)					; Write pixel row
 	subq.w	#1,a5					; Decrement number of pixel rows left
 	move.w	a5,d7
 	bne.s	NemDec_NewPixelRow			; If there's still pixel rows to write, branch
 	rts
 
-NemDec_WriteXORRowToVDP:
+NemDec_WriteXorRowToVram:
 	eor.l	d4,d2					; XOR previous pixel row with current pixel row
 	move.l	d2,(a4)					; Write pixel row
 	subq.w	#1,a5					; Decrement number of pixel rows left
@@ -178,14 +178,14 @@ NemDec_WriteXORRowToVDP:
 	
 ; ----------------------------------------------------------------------
 
-NemDec_WriteRowToRAM:
+NemDec_WriteRowToRam:
 	move.l	d4,(a4)+				; Write pixel row
 	subq.w	#1,a5					; Decrement number of pixel rows left
 	move.w	a5,d7
 	bne.s	NemDec_NewPixelRow			; If there's still pixel rows to write, branch
 	rts
 
-NemDec_WriteXORRowToRAM:
+NemDec_WriteXorRowToRam:
 	eor.l	d4,d2					; XOR previous pixel row with current pixel row
 	move.l	d2,(a4)+				; Write pixel row
 	subq.w	#1,a5					; Decrement number of pixel rows left
