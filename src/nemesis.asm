@@ -36,7 +36,7 @@ NEM_VDP_DATA		equ $C00000			; VDP data port
 ; Nemesis decompression function
 ; ----------------------------------------------------------------------
 
-NemDecToRAM:
+NemDecToRam:
 	movem.l	d0-a5,-(sp)				; Save registers
 	lea	NemDec_WriteRowToRam(pc),a3		; Write to RAM
 	bsr.s	NemDecMain				; Decompress data
